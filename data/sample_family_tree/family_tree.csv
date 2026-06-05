@@ -1,0 +1,60 @@
+fname,lname,name,full_name,knownas,nickname,birth,death,gender,id,mother,father
+wesley,martin,wesley martin,wesley martin,,,1926-06-19,-1,M,@I_2102320002@,@I_2102320010@,@I_2102320011@
+emily,lopez,emily lopez,emily terri lopez,,,1930-05-05,-1,F,@I_2102320003@,@I_2102320012@,@I_2102320013@
+brian,davis,brian davis,brian matthew davis,,,1926-08-12,2003-11-16,M,@I_2102320004@,@I_2102320014@,@I_2102320015@
+sheena,sullivan,sheena sullivan,sheena melanie sullivan,,,1932-07-24,-1,F,@I_2102320005@,@I_2102320016@,@I_2102320017@
+timothy,simpson,timothy simpson,timothy joseph simpson,,,1926-12-17,1956-04-07,M,@I_2102320006@,@I_2102320018@,@I_2102320019@
+mary,blair,mary blair,mary linda blair,,,1926-01-23,-1,F,@I_2102320007@,@I_2102320020@,@I_2102320021@
+william,ellis,william ellis,william david ellis,,,1926-12-09,1962-01-10,M,@I_2102320008@,@I_2102320022@,@I_2102320023@
+lauren,mercer,lauren mercer,lauren kelly mercer,,,1933-10-23,1963-11-23,F,@I_2102320009@,@I_2102320024@,@I_2102320025@
+joshua,martin,joshua martin,joshua edward martin,,,1929-10-18,-1,M,@I_2102320026@,@I_2102320003@,@I_2102320002@
+bianca,anderson,bianca anderson,bianca michelle anderson,,,1930-03-04,1999-12-14,F,@I_2102320027@,@I_2102320005@,@I_2102320004@
+kenneth,freeman,kenneth freeman,kenneth freeman,,,1926-10-13,1988-12-24,M,@I_2102320028@,@I_2102320007@,@I_2102320006@
+kara,lynch,kara lynch,kara laura lynch,,,1927-04-07,-1,F,@I_2102320029@,@I_2102320009@,@I_2102320008@
+katherine,martin,katherine martin,katherine cheyenne martin,,,1939-06-21,-1,F,@I_2102320030@,@I_2102320003@,@I_2102320002@
+anthony,anderson,anthony anderson,anthony brady anderson,,,1933-02-24,2007-12-14,M,@I_2102320031@,@I_2102320005@,@I_2102320004@
+cynthia,freeman,cynthia freeman,cynthia freeman,,,1926-10-22,1977-11-11,F,@I_2102320032@,@I_2102320007@,@I_2102320006@
+tiffany,freeman,tiffany freeman,tiffany margaret freeman,,,1931-10-11,-1,F,@I_2102320033@,@I_2102320007@,@I_2102320006@
+debbie,lynch,debbie lynch,debbie lynch,,,1926-05-10,-1,F,@I_2102320034@,@I_2102320009@,@I_2102320008@
+chad,martin,chad martin,chad timothy martin,,,1935-10-26,-1,M,@I_2102320035@,@I_2102320027@,@I_2102320026@
+anna,houston,anna houston,anna holly houston,,,1934-05-14,-1,F,@I_2102320036@,@I_2102320039@,@I_2102320040@
+jeremy,stanley,jeremy stanley,jeremy robert stanley,,,1932-08-05,-1,M,@I_2102320037@,@I_2102320029@,@I_2102320028@
+ashley,medina,ashley medina,ashley angel medina,,,1939-12-17,-1,F,@I_2102320038@,@I_2102320041@,@I_2102320042@
+christian,martin,christian martin,christian william martin,,,1940-09-05,-1,M,@I_2102320043@,@I_2102320027@,@I_2102320026@
+jasmine,martin,jasmine martin,jasmine mary martin,,,1944-12-03,1987-05-12,F,@I_2102320044@,@I_2102320027@,@I_2102320026@
+natalie,martin,natalie martin,natalie sonya martin,,,1945-10-20,1985-12-16,F,@I_2102320045@,@I_2102320027@,@I_2102320026@
+kara,martin,kara martin,kara martin,,,1942-02-27,2018-07-11,F,@I_2102320046@,@I_2102320027@,@I_2102320026@
+amy,houston,amy houston,amy alexandra houston,,,1942-03-12,-1,F,@I_2102320047@,@I_2102320039@,@I_2102320040@
+mark,houston,mark houston,mark michael houston,,,1929-02-05,-1,M,@I_2102320048@,@I_2102320039@,@I_2102320040@
+john,houston,john houston,john houston,,,1933-03-19,-1,M,@I_2102320049@,@I_2102320039@,@I_2102320040@
+paul,stanley,paul stanley,paul robert stanley,,,1935-12-05,2003-08-02,M,@I_2102320050@,@I_2102320029@,@I_2102320028@
+martha,stanley,martha stanley,martha jennifer stanley,,,1930-02-09,-1,F,@I_2102320051@,@I_2102320029@,@I_2102320028@
+johnny,stanley,johnny stanley,johnny stanley,,,1926-01-10,1977-01-11,M,@I_2102320052@,@I_2102320029@,@I_2102320028@
+robert,stanley,robert stanley,robert travis stanley,,,1933-10-21,-1,M,@I_2102320053@,@I_2102320029@,@I_2102320028@
+james,medina,james medina,james michael medina,,,1939-03-13,-1,M,@I_2102320054@,@I_2102320041@,@I_2102320042@
+mark,medina,mark medina,mark medina,,,1938-04-28,1968-06-28,M,@I_2102320055@,@I_2102320041@,@I_2102320042@
+john,medina,john medina,john medina,,,1931-07-18,-1,M,@I_2102320056@,@I_2102320041@,@I_2102320042@
+charles,medina,charles medina,charles joel medina,,,1941-12-09,-1,M,@I_2102320057@,@I_2102320041@,@I_2102320042@
+casey,martin,casey martin,casey daniel martin,,,1966-04-21,-1,M,@I_2102320058@,@I_2102320036@,@I_2102320035@
+michelle,wood,michelle wood,michelle becky wood,,,1967-10-19,-1,F,@I_2102320059@,@I_2102320038@,@I_2102320037@
+denise,martin,denise martin,denise nicole martin,,,1970-06-12,-1,F,@I_2102320060@,@I_2102320036@,@I_2102320035@
+brian,martin,brian martin,brian james martin,,,1956-01-13,-1,M,@I_2102320061@,@I_2102320036@,@I_2102320035@
+cassandra,wood,cassandra wood,cassandra robin wood,,,1977-08-16,2021-10-08,F,@I_2102320062@,@I_2102320038@,@I_2102320037@
+mark,wood,mark wood,mark ryan wood,,,1965-09-23,-1,M,@I_2102320063@,@I_2102320038@,@I_2102320037@
+david,wood,david wood,david james wood,,,1964-10-01,2001-03-07,M,@I_2102320064@,@I_2102320038@,@I_2102320037@
+edward,hernandez,edward hernandez,edward william hernandez,,,1972-12-27,-1,M,@I_2102320065@,@I_2102320066@,@I_2102320067@
+angelica,martin,angelica martin,angelica tracy martin,,,1990-01-21,-1,F,@I_2102320068@,@I_2102320060@,@I_2102320065@
+jason,martin,jason martin,jason michael martin,,,1991-07-06,-1,M,@I_2102320069@,@I_2102320060@,@I_2102320065@
+darlene,luna,darlene luna,darlene sheri luna,,,1954-03-20,-1,F,@I_2102320070@,@I_2102320071@,@I_2102320072@
+amy,martin,amy martin,amy martin,,,1977-04-09,2002-09-09,F,@I_2102320073@,@I_2102320070@,@I_2102320061@
+donald,martin,donald martin,donald daniel martin,,,1980-06-19,2007-10-21,M,@I_2102320074@,@I_2102320070@,@I_2102320061@
+kelly,nolan,kelly nolan,kelly mandy nolan,,,1964-06-05,-1,F,@I_2102320075@,@I_2102320076@,@I_2102320077@
+james,wood,james wood,james wood,,,1991-04-28,-1,M,@I_2102320078@,@I_2102320075@,@I_2102320063@
+stacey,martin,stacey martin,stacey martin,,,1998-12-22,-1,M,@I_2102320001@,@I_2102320059@,@I_2102320058@
+sarah,martin,sarah martin,sarah laura martin,,,1993-10-06,-1,F,@I_2102320079@,@I_2102320059@,@I_2102320058@
+edward,martin,edward martin,edward robert martin,,,2002-10-14,-1,M,@I_2102320080@,@I_2102320059@,@I_2102320058@
+samantha,martin,samantha martin,samantha leslie martin,,,2003-09-23,-1,F,@I_2102320081@,@I_2102320059@,@I_2102320058@
+rebecca,cannon,rebecca cannon,rebecca jaclyn cannon,,,1995-05-24,-1,F,@I_2102320082@,@I_2102320083@,@I_2102320084@
+joe,martin,joe martin,joe gary martin,,,2020-12-06,-1,M,@I_2102320085@,@I_2102320082@,@I_2102320001@
+sarah,martin,sarah martin,sarah karen martin,,,2022-05-18,-1,F,@I_2102320086@,@I_2102320082@,@I_2102320001@
+amanda,martin,amanda martin,amanda nina martin,,,2022-08-03,-1,F,@I_2102320087@,@I_2102320082@,@I_2102320001@
