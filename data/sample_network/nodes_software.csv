@@ -1,0 +1,15 @@
+id,labels,dependencies,name,ports,versions
+16141,Software:OS,,RHEL,,7.1;7.2;7.3
+16142,Software:OS,,Ubuntu,,14.04;16.04;16.10;17.04
+16143,Software:OS,,Debian,,6-Squeeze;7-Wheezy;8-Jessie
+16144,Software:Service,,java,,8
+16145,Software:Service,java/8,neo4j,7474;7473;7687,3.0;3.1
+16146,Software:Service,,postgres,5432,9.4;9.5;9.6
+16147,Software:Service,,couchbase,8091;8092;11207;11209;11210;11211;11214;11215;18091;18092;4369,3.0;4.0;4.5;4.6
+16148,Software:Service,java/8,elasticsearch,9200;9300;9500;9700,2.4;5.0;5.1;5.2
+16149,Software:Application,postgres/9.4,webserver,80;443,
+16150,Software:Application,java/8;neo4j/3.1,crm,80;443,
+16151,Software:Application,php;webserver;couchbase,cms,8080,
+16152,Software:Application,java;neo4j,webapp,8080,
+16153,Software:Application,elasticsearch/5.2,logstash,5000,
+16177,Software,,php,,

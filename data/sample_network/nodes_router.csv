@@ -1,0 +1,6 @@
+id,labels,name,zone
+1,Router:Egress,DC1-RE,
+4,Router,DC1-R-1,1
+7,Router,DC1-R-2,2
+10,Router,DC1-R-3,3
+13,Router,DC1-R-4,4
