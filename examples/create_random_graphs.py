@@ -71,7 +71,34 @@ def add_edges(graph, total_nodes: int, total_edges: int, batch: int) -> None:
         created += chunk
 
 
-def main() -> None:
+def create_graph(db, name: str, nodes: int, edges: int, batch: int) -> None:
+    """Create graph ``name`` with ``nodes`` :Node rows and ``edges`` random edges."""
+    graph = db.select_graph(name)
+    populate_graph(graph, nodes, batch)
+    add_edges(graph, nodes, edges, batch)
+
+
+def drop_graphs_with_prefix(db, prefix: str) -> int:
+    """Delete every graph named ``prefix`` or ``prefix_*``. Returns the count."""
+    existing = db.connection.execute_command("GRAPH.LIST") or []
+    names = [g.decode() if isinstance(g, bytes) else g for g in existing]
+    stale = [name for name in names
+             if name == prefix or name.startswith(f"{prefix}_")]
+    for name in stale:
+        db.connection.execute_command("GRAPH.DELETE", name)
+    return len(stale)
+
+
+def resolve_host_port(args: argparse.Namespace) -> "tuple[str, int]":
+    """Split a ``host:port`` --host value into (host, port)."""
+    host, port = args.host, args.port
+    if ":" in host:
+        host, _, port_str = host.partition(":")
+        port = int(port_str)
+    return host, port
+
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Create N FalkorDB graphs, each with a random node count."
     )
@@ -110,23 +137,23 @@ def main() -> None:
         parser.error("require 1 <= --min-nodes <= --max-nodes")
     if args.small_graph_nodes < 0:
         parser.error("--small-graph-nodes must be >= 0")
+    return args
 
-    host = args.host
-    port = args.port
-    if ":" in host:
-        host, _, port_str = host.partition(":")
-        port = int(port_str)
+
+def main() -> None:
+    args = parse_args()
+    host, port = resolve_host_port(args)
 
     # FalkorDB connects eagerly, so a bad endpoint fails fast here.
     try:
         db = FalkorDB(host=host, port=port,
                       username=args.username, password=args.password)
     except redis.RedisError as exc:
-        parser.error(f"cannot reach FalkorDB at {host}:{port}: {exc}")
+        raise SystemExit(f"cannot reach FalkorDB at {host}:{port}: {exc}")
 
     rng = random.Random(args.seed)
 
-    print(f"=== create_random_graphs ===")
+    print("=== create_random_graphs ===")
     print(f"target      : {host}:{port}")
     print(f"graphs      : {args.num_graphs} "
           f"(prefix '{args.prefix}_', start index {args.start_index})")
@@ -136,14 +163,8 @@ def main() -> None:
     print(f"seed        : {args.seed}\n")
 
     if args.drop_existing:
-        existing = db.connection.execute_command("GRAPH.LIST") or []
-        stale = [g.decode() if isinstance(g, bytes) else g for g in existing]
-        stale = [g for g in stale
-                 if g == args.prefix or g.startswith(f"{args.prefix}_")]
-        for stale_graph in stale:
-            db.connection.execute_command("GRAPH.DELETE", stale_graph)
-        print(f"dropped {len(stale)} existing graph(s) "
-              f"with prefix '{args.prefix}'\n")
+        dropped = drop_graphs_with_prefix(db, args.prefix)
+        print(f"dropped {dropped} existing graph(s) with prefix '{args.prefix}'\n")
 
     started_at = time.perf_counter()
     total_nodes = 0
@@ -154,9 +175,7 @@ def main() -> None:
         name = f"{args.prefix}_{index}"
         nodes = rng.randint(args.min_nodes, args.max_nodes)
         edges = int(round(nodes * args.edges_per_node))
-        graph = db.select_graph(name)
-        populate_graph(graph, nodes, args.batch)
-        add_edges(graph, nodes, edges, args.batch)
+        create_graph(db, name, nodes, edges, args.batch)
         total_nodes += nodes
         total_edges += edges
 
@@ -171,8 +190,7 @@ def main() -> None:
     graphs_created = args.num_graphs
     if args.small_graph_nodes > 0:
         small_name = f"{args.prefix}_small"
-        small_graph = db.select_graph(small_name)
-        populate_graph(small_graph, args.small_graph_nodes, args.batch)
+        create_graph(db, small_name, args.small_graph_nodes, 0, args.batch)
         total_nodes += args.small_graph_nodes
         graphs_created += 1
         print(f"\nsmall graph : {small_name} "
