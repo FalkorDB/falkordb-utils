@@ -25,6 +25,17 @@ from contextlib import contextmanager
 
 from falkordb import FalkorDB
 
+
+def reset_graph(db: FalkorDB, graph_name: str) -> None:
+    """Drop only this script's own graph.
+
+    Never use flushdb() here: it would wipe every graph on the instance.
+    """
+    try:
+        db.select_graph(graph_name).delete()
+    except Exception:
+        pass  # graph does not exist yet, nothing to drop
+
 GRAPH_NAME = "bench_basic"
 
 
@@ -55,7 +66,7 @@ def main() -> None:
     print(f"  nodes={args.nodes}  edges={args.edges}  lookups={args.lookups}  batch={args.batch}\n")
 
     db = FalkorDB(host=args.host, port=args.port)
-    db.flushdb()
+    reset_graph(db, GRAPH_NAME)
     g = db.select_graph(GRAPH_NAME)
 
     rng = random.Random(42)
@@ -117,7 +128,7 @@ def main() -> None:
         m = g.query("MATCH ()-[r]->() RETURN count(r)").result_set[0][0]
     print(f"  nodes={n}  edges={m}")
 
-    db.flushdb()
+    reset_graph(db, GRAPH_NAME)
 
 
 if __name__ == "__main__":

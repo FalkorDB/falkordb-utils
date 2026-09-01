@@ -35,6 +35,17 @@ from typing import Any, Callable
 
 from falkordb import FalkorDB
 
+
+def reset_graph(db: FalkorDB, graph_name: str) -> None:
+    """Drop only this script's own graph.
+
+    Never use flushdb() here: it would wipe every graph on the instance.
+    """
+    try:
+        db.select_graph(graph_name).delete()
+    except Exception:
+        pass  # graph does not exist yet, nothing to drop
+
 # --- Test data ----------------------------------------------------------------
 
 # Keys that should round-trip cleanly once the PR #212 fix is applied.
@@ -107,7 +118,7 @@ def main() -> int:
 
     print(f"Connecting to FalkorDB at {args.host}:{args.port} ...")
     db = FalkorDB(host=args.host, port=args.port)
-    db.flushdb()
+    reset_graph(db, args.graph)
     g = db.select_graph(args.graph)
 
     results: list[CaseResult] = []
@@ -239,7 +250,7 @@ def main() -> int:
     print()
     print(f"Total: {len(results)}    Passed: {passed}    Failed: {failed}")
 
-    db.flushdb()
+    reset_graph(db, args.graph)
     return 0 if failed == 0 else 1
 
 

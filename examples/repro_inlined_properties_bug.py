@@ -9,6 +9,17 @@ Run:
 
 from falkordb import FalkorDB
 
+
+def reset_graph(db: FalkorDB, graph_name: str) -> None:
+    """Drop only this script's own graph.
+
+    Never use flushdb() here: it would wipe every graph on the instance.
+    """
+    try:
+        db.select_graph(graph_name).delete()
+    except Exception:
+        pass  # graph does not exist yet, nothing to drop
+
 GRAPH_NAME = "repro_inlined_properties_bug"
 PROPS = {"name": "Alice", "age": 30}
 
@@ -25,7 +36,7 @@ def try_query(graph, label, query, params=None):
 
 def main():
     db = FalkorDB(host="localhost", port=6379)
-    db.flushdb()
+    reset_graph(db, GRAPH_NAME)
     graph = db.select_graph(GRAPH_NAME)
 
     print("These should ALL succeed but the server rejects the parameter form:\n")
@@ -52,7 +63,7 @@ def main():
         {"props": PROPS},
     )
 
-    db.flushdb()
+    reset_graph(db, GRAPH_NAME)
 
 
 if __name__ == "__main__":
