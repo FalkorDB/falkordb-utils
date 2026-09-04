@@ -126,3 +126,9 @@ python examples/report_graph_memory.py --prefix rndgraph --out-dir ./report
 |---------|------|-------------|
 | IT Network | `data/sample_network/` | ~30 node/edge CSVs: machines, interfaces, applications, processes, etc. |
 | Family Tree | `data/sample_family_tree/` | 59-row family tree with names, dates, relationships |
+
+## Java Examples
+
+| Example | Path | Description |
+|---------|------|-------------|
+| Replica read routing | `java-examples/replica-read-routing/` | Connection factory that sends writes to the primary and spreads reads across replicas. Covers read preferences, staleness, pool sizing, and verifying which node served a read. Requires jfalkordb 0.11.1+ |

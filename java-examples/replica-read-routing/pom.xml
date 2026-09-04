@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.falkordb.examples</groupId>
+  <artifactId>replica-read-routing</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>FalkorDB replica read routing example</name>
+  <description>
+    Routes writes to a primary and reads to replicas using a small connection factory.
+  </description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      0.11.1 is the minimum. Earlier versions warmed the client side schema cache with
+      GRAPH.QUERY, a write, so the first replica read returning a node or a path failed
+      with READONLY. See https://github.com/FalkorDB/JFalkorDB/pull/414
+    -->
+    <jfalkordb.version>0.11.1</jfalkordb.version>
+    <junit.version>5.10.2</junit.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.falkordb</groupId>
+      <artifactId>jfalkordb</artifactId>
+      <version>${jfalkordb.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
