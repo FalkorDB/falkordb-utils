@@ -36,21 +36,40 @@ public final class ReplicaReadDemo {
     private static final int READS_PER_WORKER = 250;
 
     public static void main(String[] args) throws Exception {
-        Endpoint primary = endpointFromProperties("primary", 6399);
-        List<Endpoint> replicas = replicaEndpointsFromProperties();
-
-        System.out.println("primary  : " + primary);
-        System.out.println("replicas : " + replicas);
-        System.out.println();
-
         FalkorGraphFactory.Builder builder = FalkorGraphFactory.builder()
-                .primary(primary)
                 .readPreference(ReadPreference.ROUND_ROBIN)
                 // Sized at or above the worker count so threads never queue on the pool.
                 .poolMaxTotal(WORKER_THREADS * 2)
                 .poolMaxIdle(WORKER_THREADS * 2);
-        for (Endpoint replica : replicas) {
-            builder.replica(replica);
+
+        String sentinelHost = System.getProperty("sentinel.host");
+        if (sentinelHost != null && !sentinelHost.trim().isEmpty()) {
+            // Preferred path. Sentinel already knows which node is primary, so do not keep a
+            // second copy of that answer in configuration where a failover can invalidate it.
+            SentinelTopology.Topology topology = SentinelTopology.builder()
+                    .sentinel(Endpoint.of(
+                            sentinelHost,
+                            Integer.parseInt(System.getProperty("sentinel.port", "26379")),
+                            user(),
+                            password(),
+                            Boolean.parseBoolean(System.getProperty("sentinel.tls", "false"))))
+                    .masterName(System.getProperty("sentinel.master"))
+                    .dataCredentials(user(), password())
+                    .dataTls(tlsEnabled())
+                    .build()
+                    .discover();
+
+            System.out.println("discovered via Sentinel at " + sentinelHost);
+            System.out.println("  " + topology);
+            System.out.println();
+            builder.topology(topology);
+        } else {
+            Endpoint primary = endpointFromProperties("primary", 6399);
+            List<Endpoint> replicas = replicaEndpointsFromProperties();
+            System.out.println("primary  : " + primary);
+            System.out.println("replicas : " + replicas);
+            System.out.println();
+            builder.primary(primary).replicas(replicas);
         }
 
         try (FalkorGraphFactory factory = builder.build()) {

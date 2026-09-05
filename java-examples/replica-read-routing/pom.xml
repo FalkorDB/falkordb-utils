@@ -44,10 +44,28 @@
 
   <build>
     <plugins>
+      <!--
+        Pinned because Maven's built in default differs by Maven version. Maven 3.8 defaults to
+        compiler plugin 3.1, which predates the release flag and falls back to source 5, so the
+        build fails on a modern JDK with "Source option 5 is no longer supported". Pinning keeps
+        the example building the same way on whichever Maven a reader happens to have.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.2.0</version>
       </plugin>
     </plugins>
   </build>

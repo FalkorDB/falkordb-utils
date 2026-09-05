@@ -28,6 +28,37 @@ public final class RoleVerifier {
     private RoleVerifier() {}
 
     /**
+     * Reports whether a node is running in Redis Cluster mode.
+     *
+     * <p>This example routes reads between one primary and its replicas. Cluster mode is a different
+     * shape: keys are split across shards, so there is no single primary holding the whole dataset
+     * and no single replica mirroring it. Routing built on that assumption would silently read from
+     * a node that does not hold the key. Detecting it at startup turns a confusing wrong answer into
+     * a clear error.
+     *
+     * @param driver a driver connected to the node to inspect
+     * @return true when the node reports {@code cluster_enabled:1}, false when it reports otherwise
+     *     or could not be reached
+     */
+    public static boolean clusterModeEnabled(Driver driver) {
+        try (Jedis connection = driver.getConnection()) {
+            String clusterInfo = connection.info("cluster");
+            if (clusterInfo == null) {
+                return false;
+            }
+            for (String line : clusterInfo.split("\\r?\\n")) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("cluster_enabled:")) {
+                    return "1".equals(trimmed.substring("cluster_enabled:".length()).trim());
+                }
+            }
+            return false;
+        } catch (Exception unreachable) {
+            return false;
+        }
+    }
+
+    /**
      * Asks a node what role it currently believes it holds.
      *
      * @param driver a driver connected to the node to inspect

@@ -5,6 +5,17 @@ lives in one small factory instead of being repeated, and forgotten, throughout 
 
 This is reference code meant to be copied and adapted.
 
+## Scope: primary and replica, not Redis Cluster
+
+This targets a deployment with **one primary holding the whole dataset and one or more replicas
+mirroring it**. That is what FalkorDB Cloud provisions and what Sentinel manages.
+
+It does **not** support Redis Cluster. Under cluster mode the keyspace is sharded across several
+primaries, so "send this read to a replica instead" stops being a single decision: the client has to
+resolve which shard owns the key before it can choose a node. Routing that ignores sharding returns
+a wrong answer rather than an error, which is the worst possible failure mode. The factory therefore
+checks `cluster_enabled` at startup and refuses to build against a cluster.
+
 ## Why bother
 
 A replica that only exists for failover still costs money and still burns nothing. Measured on a
@@ -39,6 +50,35 @@ deterministic. Fixed in [JFalkorDB#414](https://github.com/FalkorDB/JFalkorDB/pu
 in 0.11.1.
 
 ## Quick start
+
+Let Sentinel tell you the topology. Naming the primary by hand works until the first failover, after
+which the node you named is a replica and every write fails.
+
+```java
+SentinelTopology.Topology topology = SentinelTopology.builder()
+        .sentinel(Endpoint.of(sentinelHost, 26379, "falkordb", password, sentinelUsesTls))
+        .dataCredentials("falkordb", password)
+        .dataTls(dataUsesTls)
+        .build()
+        .discover();
+
+try (FalkorGraphFactory factory = FalkorGraphFactory.builder()
+        .topology(topology)
+        .readPreference(ReadPreference.ROUND_ROBIN)
+        .poolMaxTotal(16)
+        .build()) {
+    ...
+}
+```
+
+Note that TLS is configured separately for the Sentinel port and the data port. They are independent
+settings and real instances differ: one FalkorDB Cloud instance was observed serving Sentinel over
+TLS, another served both Sentinel and data in plaintext. Do not assume they match.
+
+Discovery is a snapshot, not a subscription. Re-run it when a write fails with `READONLY`, which is
+how a failover announces itself to a client holding a stale view.
+
+If you would rather name the nodes explicitly:
 
 ```java
 try (FalkorGraphFactory factory = FalkorGraphFactory.builder()
@@ -148,7 +188,20 @@ cd java-examples/replica-read-routing
 ./mvnw compile exec:java -Dexec.mainClass=com.falkordb.examples.replica.ReplicaReadDemo
 ```
 
-Against FalkorDB Cloud:
+Against FalkorDB Cloud, letting Sentinel find the nodes:
+
+```bash
+./mvnw compile exec:java \
+  -Dexec.mainClass=com.falkordb.examples.replica.ReplicaReadDemo \
+  -Dsentinel.host=singlezonesentinellblb.your-instance.cloud -Dsentinel.port=26379 \
+  -Dsentinel.tls=false -Dtls=false \
+  -Duser=falkordb -Dpassword=...
+```
+
+Set `-Dsentinel.tls` and `-Dtls` to match your instance, and add `-Dsentinel.master=<name>` if
+Sentinel monitors more than one primary.
+
+Naming the nodes explicitly instead:
 
 ```bash
 ./mvnw compile exec:java \
@@ -182,5 +235,6 @@ never calls `FLUSHDB`, which would drop every graph on the instance.
 | `FalkorGraphFactory.java` | The factory. Routing, driver and handle lifecycle, diagnostics |
 | `ReadPreference.java` | Which nodes may serve reads, and the consistency each implies |
 | `Endpoint.java` | Host, port, credentials and TLS for one node |
-| `RoleVerifier.java` | Asks a node which replication role it reports |
+| `SentinelTopology.java` | Asks Sentinel which node is primary and which are replicas |
+| `RoleVerifier.java` | Asks a node its replication role, and detects cluster mode |
 | `ReplicaReadDemo.java` | Runnable walkthrough of all of the above |

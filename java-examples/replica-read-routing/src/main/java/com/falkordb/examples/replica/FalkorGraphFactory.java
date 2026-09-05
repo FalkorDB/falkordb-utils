@@ -5,6 +5,7 @@ import com.falkordb.Graph;
 import com.falkordb.impl.api.DriverImpl;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * first replica read that returned a node, a relationship or a path failed with {@code READONLY}.
  * Reads that returned only scalars worked, which made the failure look intermittent. Fixed in
  * 0.11.1.
+ *
+ * <h2>Primary and replica only, not Redis Cluster</h2>
+ *
+ * <p>This targets a deployment with one primary holding the whole dataset and replicas mirroring it,
+ * which is what FalkorDB Cloud provisions and what Sentinel manages. It does not support Redis
+ * Cluster. Under cluster mode the keyspace is sharded across several primaries, so "send this read
+ * to a replica instead" is no longer a single decision: the client first has to know which shard
+ * owns the key. Routing that ignores sharding returns a wrong answer instead of an error, so the
+ * factory checks {@code cluster_enabled} at startup and refuses to build.
  *
  * <h2>Staleness</h2>
  *
@@ -103,7 +113,25 @@ public final class FalkorGraphFactory implements AutoCloseable {
         }
 
         if (builder.verifyRolesOnStartup) {
+            rejectClusterMode();
             verifyRoles();
+        }
+    }
+
+    /**
+     * Fails fast when the primary is running in Redis Cluster mode.
+     *
+     * <p>Everything in this class assumes one primary holding the whole dataset with replicas
+     * mirroring it. Under cluster mode the keyspace is sharded, so a read routed to a node that does
+     * not own the key returns a wrong answer rather than an error. Better to refuse at startup than
+     * to serve that quietly.
+     */
+    private void rejectClusterMode() {
+        if (RoleVerifier.clusterModeEnabled(primaryDriver)) {
+            throw new IllegalStateException(
+                    "node " + primaryEndpoint + " reports cluster_enabled:1. This example routes reads "
+                            + "across a primary and its replicas and does not support Redis Cluster, "
+                            + "where the keyspace is sharded across several primaries.");
         }
     }
 
@@ -367,6 +395,24 @@ public final class FalkorGraphFactory implements AutoCloseable {
         public Builder replica(Endpoint endpoint) {
             this.replicaEndpoints.add(endpoint);
             return this;
+        }
+
+        /** Adds every replica at once, which is what {@link SentinelTopology} returns. */
+        public Builder replicas(Collection<Endpoint> endpoints) {
+            if (endpoints != null) {
+                this.replicaEndpoints.addAll(endpoints);
+            }
+            return this;
+        }
+
+        /**
+         * Takes the primary and replicas straight from Sentinel discovery.
+         *
+         * <p>Preferred over naming hosts by hand, because a failover changes which node is the
+         * primary and a hard coded name does not follow.
+         */
+        public Builder topology(SentinelTopology.Topology topology) {
+            return primary(topology.getPrimary()).replicas(topology.getReplicas());
         }
 
         public Builder readPreference(ReadPreference preference) {
