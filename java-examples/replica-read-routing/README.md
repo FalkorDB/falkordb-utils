@@ -18,23 +18,35 @@ checks `cluster_enabled` at startup and refuses to build against a cluster.
 
 ## Why bother
 
-A replica that only exists for failover still costs money and still burns nothing. Measured on a
-primary and replica pair, running the same 12,000 read queries from 4 client threads:
+A replica that only exists for failover still costs money and still burns nothing. Measured on
+FalkorDB Cloud (AWS us-east-2, 2 pods, `THREAD_COUNT=2` per node) with the Java client on a
+c4.xlarge in the same region, running the same 12,000 read queries from 4 client threads against a
+20,000 machine graph:
 
-| Reads routed to | Throughput | Primary worker CPU | Replica worker CPU |
-|---|---|---|---|
-| Primary only | 8,787 q/s | 1.12 s | **0.00 s** |
-| Primary and replica | 8,770 q/s | 0.58 s | 0.63 s |
+| Reads routed to | Throughput | Mean latency | Primary CPU | Replica CPU |
+|---|---|---|---|---|
+| Primary only | 2,986 q/s | 1.340 ms | 1.65 core-s | **0.01 core-s** |
+| Primary and replica | 2,999 q/s | 1.334 ms | 0.97 core-s | 0.98 core-s |
 
 Two things are worth reading carefully.
 
 **Throughput did not improve.** With 4 client threads and a blocking client there are at most 4
-queries in flight, and a single node handles that without breaking a sweat. Adding read capacity
-does not help when nothing was queueing for it.
+queries in flight, so throughput is just `threads / latency`. Here that is `4 / 0.001334 s` = 2,998
+q/s, which is within a rounding error of the measured 2,999. Round trip time to the database was
+1.18 ms, so almost all of that latency is network, not query execution. Adding read capacity cannot
+help when the client is blocked on the wire rather than queueing behind a busy server.
 
 **CPU per node halved.** That is the actual win. The same work is spread over hardware you are
 already paying for, and each node keeps far more headroom for spikes and for failover. Read routing
-is a utilization and cost story, not a latency story, until a single node is genuinely saturated.
+is a utilization and cost story, not a latency story, until a single node is actually saturated.
+
+Two honest caveats. Total CPU across both nodes rose slightly, from 1.66 to 1.95 core-seconds,
+because a second connection pool and a second schema cache are not free. And these numbers say
+nothing about a workload with more concurrency: raise the client thread count until a single node
+saturates and the throughput column starts to move.
+
+Reproduce this on your own instance with `RoutingComparison`, described under
+[Files](#files).
 
 ## Requires jfalkordb 0.11.1 or newer
 
@@ -238,3 +250,25 @@ never calls `FLUSHDB`, which would drop every graph on the instance.
 | `SentinelTopology.java` | Asks Sentinel which node is primary and which are replicas |
 | `RoleVerifier.java` | Asks a node its replication role, and detects cluster mode |
 | `ReplicaReadDemo.java` | Runnable walkthrough of all of the above |
+| `RoutingComparison.java` | Measures primary only against rotating, and reports per node CPU |
+
+### Reproducing the CPU measurement
+
+`RoutingComparison` seeds a 20,000 machine graph, runs the same read workload once with
+`PRIMARY_ONLY` and once with `ROUND_ROBIN`, and reports throughput alongside the CPU each node
+burned. It drops its graph afterwards and never touches anything else on the instance.
+
+```bash
+./mvnw compile exec:java \
+  -Dexec.mainClass=com.falkordb.examples.replica.RoutingComparison \
+  -Dsentinel.host=singlezonesentinellblb.your-instance.cloud -Dsentinel.port=26379 \
+  -Dsentinel.tls=false -Dtls=false \
+  -Duser=falkordb -Dpassword=...
+```
+
+Run it from a machine in the same region as the database. At this concurrency throughput is bounded
+by round trip time, so a client sitting in another region measures the distance between them rather
+than anything about routing.
+
+CPU is read from `INFO cpu` as a before and after delta, because the FalkorDB Cloud ACL user is not
+permitted to run `CONFIG RESETSTAT` and the counters are cumulative.
