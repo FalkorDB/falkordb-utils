@@ -15,3 +15,6 @@ env/
 # Local reports / scratch output
 graph_memory_reports/
 reports/
+
+# Java example build output
+java-examples/**/target/
