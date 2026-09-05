@@ -20,33 +20,46 @@ checks `cluster_enabled` at startup and refuses to build against a cluster.
 
 A replica that only exists for failover still costs money and still burns nothing. Measured on
 FalkorDB Cloud (AWS us-east-2, 2 pods, `THREAD_COUNT=2` per node) with the Java client on a
-c4.xlarge in the same region, running the same 12,000 read queries from 4 client threads against a
-20,000 machine graph:
+c4.xlarge in the same region. Each measurement is 12,000 one hop indexed reads against a 20,000
+machine graph, reported as the median of 3 runs.
 
-| Reads routed to | Throughput | Mean latency | Primary CPU | Replica CPU |
+| Client threads | Primary only | Primary and replica | Throughput change | Rejected queries, primary only |
 |---|---|---|---|---|
-| Primary only | 2,986 q/s | 1.340 ms | 1.65 core-s | **0.01 core-s** |
-| Primary and replica | 2,999 q/s | 1.334 ms | 0.97 core-s | 0.98 core-s |
+| 1 | 791 q/s | 796 q/s | +1% | 0 |
+| 2 | 1,526 q/s | 1,560 q/s | +2% | 0 |
+| 4 | 3,083 q/s | 3,020 q/s | -2% | 0 |
+| 8 | 6,122 q/s | 6,106 q/s | 0% | 0 |
+| 16 | 10,524 q/s | 12,072 q/s | **+15%** | 0 |
+| 32 | 14,693 q/s | 20,623 q/s | **+40%** | 0 |
+| 64 | 16,760 q/s | 28,612 q/s | **+71%** | **50** |
 
-Two things are worth reading carefully.
+There are three separate results here, and conflating them is how benchmarks mislead.
 
-**Throughput did not improve.** With 4 client threads and a blocking client there are at most 4
-queries in flight, so throughput is just `threads / latency`. Here that is `4 / 0.001334 s` = 2,998
-q/s, which is within a rounding error of the measured 2,999. Round trip time to the database was
-1.18 ms, so almost all of that latency is network, not query execution. Adding read capacity cannot
-help when the client is blocked on the wire rather than queueing behind a busy server.
+**Below 8 threads, routing buys you nothing in throughput.** With a blocking client, throughput is
+`threads / latency`. Round trip time to the database was 1.18 ms and measured latency was about
+1.30 ms, so the client spends nearly all its time on the wire rather than waiting behind a busy
+server. Adding read capacity cannot help when nothing is queueing for it. At this concurrency,
+putting the client in the same region as the database matters far more than adding a replica.
 
-**CPU per node halved.** That is the actual win. The same work is spread over hardware you are
-already paying for, and each node keeps far more headroom for spikes and for failover. Read routing
-is a utilization and cost story, not a latency story, until a single node is actually saturated.
+**Below 8 threads you still halve CPU per node.** At 4 threads the primary burned 1.61 core-seconds
+and the replica 0.01. Rotating made it 0.97 and 0.91. Identical throughput, the same work spread
+over hardware you already pay for, and roughly double the headroom on each node for spikes and for
+failover.
 
-Two honest caveats. Total CPU across both nodes rose slightly, from 1.66 to 1.95 core-seconds,
-because a second connection pool and a second schema cache are not free. And these numbers say
-nothing about a workload with more concurrency: raise the client thread count until a single node
-saturates and the throughput column starts to move.
+**Above 16 threads the throughput gain is real, and by 64 threads primary only starts failing.**
+Once the primary is the bottleneck, the second node is worth up to 71%. At 64 threads the primary
+rejected about 50 of 12,000 queries with:
 
-Reproduce this on your own instance with `RoutingComparison`, described under
-[Files](#files).
+```
+JedisDataException: Max pending queries exceeded
+```
+
+That is `MAX_QUEUED_QUERIES=50` being hit on the primary while the replica sat completely idle.
+Rotating rejected nothing at the same load. This is the sharpest form of the argument: primary only
+does not merely waste a node, it drops requests while that node is doing nothing.
+
+One honest caveat. Total CPU across both nodes rose slightly, for example 1.62 to 1.88
+core-seconds at 4 threads, because a second connection pool and a second schema cache are not free.
 
 ## Requires jfalkordb 0.11.1 or newer
 
@@ -254,9 +267,10 @@ never calls `FLUSHDB`, which would drop every graph on the instance.
 
 ### Reproducing the CPU measurement
 
-`RoutingComparison` seeds a 20,000 machine graph, runs the same read workload once with
-`PRIMARY_ONLY` and once with `ROUND_ROBIN`, and reports throughput alongside the CPU each node
-burned. It drops its graph afterwards and never touches anything else on the instance.
+`RoutingComparison` seeds a 20,000 machine graph, then sweeps client thread counts running the same
+read workload once with `PRIMARY_ONLY` and once with `ROUND_ROBIN`, reporting throughput, latency,
+rejected queries and the CPU each node burned. It prints a CSV block at the end for charting. It
+drops its graph afterwards and never touches anything else on the instance.
 
 ```bash
 ./mvnw compile exec:java \
@@ -266,7 +280,9 @@ burned. It drops its graph afterwards and never touches anything else on the ins
   -Duser=falkordb -Dpassword=...
 ```
 
-Run it from a machine in the same region as the database. At this concurrency throughput is bounded
+The sweep defaults to `1,2,4,8,16,32,64` threads. Narrow it with `-Dthreads=4,8`.
+
+Run it from a machine in the same region as the database. At low concurrency throughput is bounded
 by round trip time, so a client sitting in another region measures the distance between them rather
 than anything about routing.
 

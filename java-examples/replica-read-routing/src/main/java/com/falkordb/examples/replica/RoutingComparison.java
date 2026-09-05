@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
@@ -24,8 +25,7 @@ public final class RoutingComparison {
 
     private static final String GRAPH = "routing_comparison";
     private static final int MACHINES = 20_000;
-    private static final int WORKERS = 4;
-    private static final int READS_PER_WORKER = 3_000;
+    private static final int TOTAL_READS = 12_000;
     private static final int DISTINCT_PARAMS = 1_000;
 
     public static void main(String[] args) throws Exception {
@@ -46,24 +46,48 @@ public final class RoutingComparison {
         allNodes.add(topology.getPrimary());
         allNodes.addAll(topology.getReplicas());
 
+        List<Integer> threadCounts = threadCounts();
+        int maxThreads = threadCounts.get(threadCounts.size() - 1);
+
         try (FalkorGraphFactory factory = FalkorGraphFactory.builder()
                 .topology(topology)
-                .poolMaxTotal(WORKERS * 2)
-                .poolMaxIdle(WORKERS * 2)
+                // The pool must never be the bottleneck, or this measures commons-pool2
+                // rather than FalkorDB. The jfalkordb default of 8 is below the top of the sweep.
+                .poolMaxTotal(maxThreads * 2)
+                .poolMaxIdle(maxThreads * 2)
                 .build()) {
 
             seed(factory);
-            // Warm the query plan cache and the client schema cache on every node so the
+            // Warm the server plan cache and the client schema cache on every node so the
             // comparison measures steady state rather than first-call costs.
             warmUp(factory);
 
-            for (ReadPreference preference : List.of(ReadPreference.PRIMARY_ONLY, ReadPreference.ROUND_ROBIN)) {
-                measure(factory, preference, allNodes);
+            List<String> csv = new ArrayList<>();
+            csv.add("threads,mode,reads,seconds,throughput_qps,latency_ms,primary_cpu_s,replica_cpu_s");
+
+            for (int threads : threadCounts) {
+                for (ReadPreference preference :
+                        List.of(ReadPreference.PRIMARY_ONLY, ReadPreference.ROUND_ROBIN)) {
+                    csv.add(measure(factory, preference, allNodes, threads));
+                }
             }
+
+            System.out.println("\n===== CSV =====");
+            csv.forEach(System.out::println);
 
             factory.write(GRAPH).deleteGraph();
             System.out.println("\nremoved graph '" + GRAPH + "'");
         }
+    }
+
+    /** Defaults to a sweep, so the point at which throughput starts to move is visible. */
+    private static List<Integer> threadCounts() {
+        String configured = System.getProperty("threads", "1,2,4,8,16,32,64");
+        List<Integer> counts = new ArrayList<>();
+        for (String entry : configured.split(",")) {
+            counts.add(Integer.parseInt(entry.trim()));
+        }
+        return counts;
     }
 
     private static void seed(FalkorGraphFactory factory) {
@@ -108,44 +132,68 @@ public final class RoutingComparison {
                 params);
     }
 
-    private static void measure(
-            FalkorGraphFactory factory, ReadPreference preference, List<Endpoint> allNodes) throws Exception {
+    private static String measure(
+            FalkorGraphFactory factory, ReadPreference preference, List<Endpoint> allNodes, int threads)
+            throws Exception {
+
+        int readsPerWorker = TOTAL_READS / threads;
+        int totalReads = readsPerWorker * threads;
 
         Map<Endpoint, Double> cpuBefore = cpuSeconds(allNodes);
 
-        ExecutorService pool = Executors.newFixedThreadPool(WORKERS);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
         AtomicInteger failures = new AtomicInteger();
+        AtomicReference<String> firstFailure = new AtomicReference<>();
         long startNanos = System.nanoTime();
 
-        for (int worker = 0; worker < WORKERS; worker++) {
+        for (int worker = 0; worker < threads; worker++) {
             final int workerId = worker;
             pool.submit(() -> {
                 Graph graph = factory.read(GRAPH, preference);
-                for (int i = 0; i < READS_PER_WORKER; i++) {
+                for (int i = 0; i < readsPerWorker; i++) {
                     try {
-                        runQuery(graph, workerId * READS_PER_WORKER + i);
+                        runQuery(graph, workerId * readsPerWorker + i);
                     } catch (Exception failure) {
                         failures.incrementAndGet();
+                        firstFailure.compareAndSet(null, failure.getMessage());
                     }
                 }
             });
         }
         pool.shutdown();
-        pool.awaitTermination(10, TimeUnit.MINUTES);
+        pool.awaitTermination(30, TimeUnit.MINUTES);
 
         double elapsedSeconds = (System.nanoTime() - startNanos) / 1e9;
         Map<Endpoint, Double> cpuAfter = cpuSeconds(allNodes);
 
-        int totalReads = WORKERS * READS_PER_WORKER;
-        System.out.printf("%n=== %s ===%n", preference);
+        double throughput = totalReads / elapsedSeconds;
+        double latencyMillis = (elapsedSeconds * 1000.0) / readsPerWorker;
+
+        System.out.printf("%n=== %2d threads, %s ===%n", threads, preference);
         System.out.printf("  %,d reads in %.2fs = %,.0f reads/sec (failures: %d)%n",
-                totalReads, elapsedSeconds, totalReads / elapsedSeconds, failures.get());
-        System.out.printf("  mean latency per thread: %.3f ms%n",
-                (elapsedSeconds * 1000.0) / READS_PER_WORKER);
+                totalReads, elapsedSeconds, throughput, failures.get());
+        System.out.printf("  mean latency per thread: %.3f ms%n", latencyMillis);
+        if (firstFailure.get() != null) {
+            System.out.println("  first failure: " + firstFailure.get());
+        }
+
+        List<Double> cpuDeltas = new ArrayList<>();
         for (Endpoint node : allNodes) {
             double delta = cpuAfter.getOrDefault(node, 0.0) - cpuBefore.getOrDefault(node, 0.0);
+            cpuDeltas.add(delta);
             System.out.printf("  cpu %-58s %.2f core-s%n", node, delta);
         }
+
+        return String.format(
+                "%d,%s,%d,%.3f,%.0f,%.3f,%.2f,%.2f",
+                threads,
+                preference,
+                totalReads,
+                elapsedSeconds,
+                throughput,
+                latencyMillis,
+                cpuDeltas.get(0),
+                cpuDeltas.size() > 1 ? cpuDeltas.get(1) : 0.0);
     }
 
     /** Cumulative process CPU per node. The ACL user cannot RESETSTAT, so read deltas. */
