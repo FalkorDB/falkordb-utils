@@ -158,6 +158,20 @@ Against FalkorDB Cloud:
   -Dtls=true -Duser=falkordb -Dpassword=...
 ```
 
+With more than one replica, list them under `replica.hosts` instead. Each entry may carry its own
+port, and any entry without one falls back to `replica.port`:
+
+```bash
+./mvnw compile exec:java \
+  -Dexec.mainClass=com.falkordb.examples.replica.ReplicaReadDemo \
+  -Dprimary.host=node-0.your-instance.cloud -Dprimary.port=6379 \
+  -Dreplica.hosts=node-1.your-instance.cloud:6379,node-2.your-instance.cloud:6379 \
+  -Dtls=true -Duser=falkordb -Dpassword=...
+```
+
+Point these at the individual node endpoints, not at a Sentinel or load balancer address. The whole
+point is choosing which node serves each read, so the client needs to reach each node directly.
+
 The demo creates and then deletes a graph named `replica_read_demo`. It deletes only that graph and
 never calls `FLUSHDB`, which would drop every graph on the instance.
 

@@ -3,7 +3,9 @@ package com.falkordb.examples.replica;
 import com.falkordb.Graph;
 import com.falkordb.Record;
 import com.falkordb.ResultSet;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,21 +37,23 @@ public final class ReplicaReadDemo {
 
     public static void main(String[] args) throws Exception {
         Endpoint primary = endpointFromProperties("primary", 6399);
-        Endpoint replica = endpointFromProperties("replica", 6400);
+        List<Endpoint> replicas = replicaEndpointsFromProperties();
 
-        System.out.println("primary : " + primary);
-        System.out.println("replica : " + replica);
+        System.out.println("primary  : " + primary);
+        System.out.println("replicas : " + replicas);
         System.out.println();
 
-        try (FalkorGraphFactory factory = FalkorGraphFactory.builder()
+        FalkorGraphFactory.Builder builder = FalkorGraphFactory.builder()
                 .primary(primary)
-                .replica(replica)
                 .readPreference(ReadPreference.ROUND_ROBIN)
                 // Sized at or above the worker count so threads never queue on the pool.
                 .poolMaxTotal(WORKER_THREADS * 2)
-                .poolMaxIdle(WORKER_THREADS * 2)
-                .build()) {
+                .poolMaxIdle(WORKER_THREADS * 2);
+        for (Endpoint replica : replicas) {
+            builder.replica(replica);
+        }
 
+        try (FalkorGraphFactory factory = builder.build()) {
             reportTopology(factory);
             seedData(factory);
             demonstrateStaleness(factory);
@@ -196,10 +200,54 @@ public final class ReplicaReadDemo {
     private static Endpoint endpointFromProperties(String prefix, int defaultPort) {
         String host = System.getProperty(prefix + ".host", "localhost");
         int port = Integer.parseInt(System.getProperty(prefix + ".port", String.valueOf(defaultPort)));
-        String user = System.getProperty("user");
-        String password = System.getProperty("password");
-        boolean tls = Boolean.parseBoolean(System.getProperty("tls", "false"));
-        return Endpoint.of(host, port, user, password, tls);
+        return Endpoint.of(host, port, user(), password(), tlsEnabled());
+    }
+
+    /**
+     * Reads any number of replicas.
+     *
+     * <p>Accepts {@code -Dreplica.hosts=hostA:6379,hostB:6379} for several nodes, or the single
+     * {@code -Dreplica.host} and {@code -Dreplica.port} pair. A port may be omitted per host, in
+     * which case {@code replica.port} applies, defaulting to 6400 to match the local containers.
+     */
+    private static List<Endpoint> replicaEndpointsFromProperties() {
+        int defaultPort = Integer.parseInt(System.getProperty("replica.port", "6400"));
+        String hostList = System.getProperty("replica.hosts");
+
+        if (hostList == null || hostList.trim().isEmpty()) {
+            return List.of(endpointFromProperties("replica", defaultPort));
+        }
+
+        List<Endpoint> replicas = new ArrayList<>();
+        for (String entry : hostList.split(",")) {
+            String trimmed = entry.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            // Split on the last colon so an IPv6 literal in brackets survives.
+            int separator = trimmed.lastIndexOf(':');
+            String host = separator > 0 ? trimmed.substring(0, separator) : trimmed;
+            int port = separator > 0
+                    ? Integer.parseInt(trimmed.substring(separator + 1))
+                    : defaultPort;
+            replicas.add(Endpoint.of(host, port, user(), password(), tlsEnabled()));
+        }
+        if (replicas.isEmpty()) {
+            throw new IllegalArgumentException("replica.hosts was set but contained no usable entry");
+        }
+        return replicas;
+    }
+
+    private static String user() {
+        return System.getProperty("user");
+    }
+
+    private static String password() {
+        return System.getProperty("password");
+    }
+
+    private static boolean tlsEnabled() {
+        return Boolean.parseBoolean(System.getProperty("tls", "false"));
     }
 
     private ReplicaReadDemo() {}
