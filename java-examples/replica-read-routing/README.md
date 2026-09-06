@@ -84,14 +84,30 @@ The raw evidence for the table above is committed next to this file:
 
 ### Seen from the server side
 
-The FalkorDB Cloud dashboard for the same run, which is useful because it is measured by the
+The FalkorDB Cloud dashboard for the same workload, which matters because it is measured by the
 database rather than by the client that is making the claim.
+
+**Primary only, 64 threads.** The instance is doing a lot of work on exactly one node.
+
+![Primary only, CPU per node](docs/dashboard-primary-only-cpu.png)
+
+`node-sz-0` is at **133%** CPU while `node-sz-1` is at **0.338%**. The replica is not lightly
+loaded, it is asleep. This is the whole argument in two numbers: you are paying for two nodes and
+running one of them into the ground.
+
+![Primary only, time spent per command](docs/dashboard-primary-only-time.png)
+
+The same moment by time spent. `node-sz-0 :: graph.RO_QUERY` accounts for **25.9 seconds of work
+per second**, and `node-sz-1` does not appear in the query list at all. Its only entries are
+housekeeping such as `info`, `ping` and `publish`, measured in microseconds.
+
+**Across a full sweep.** Stepping through 4, 16 and 64 threads makes the pattern repeat.
 
 ![Commands per second](docs/dashboard-commands.png)
 
-Total commands per second climbs in steps as the sweep works through 4, 16 and 64 threads. The
-tooltip is taken during a `ROUND_ROBIN` stage and shows `graph.RO_QUERY` at 13.5K/s on `node-sz-1`
-and 13.2K/s on `node-sz-0`, so the split is even to within 2%.
+Total commands per second climbs in steps as the sweep works through each thread count. The tooltip
+is taken during a `ROUND_ROBIN` stage and shows `graph.RO_QUERY` at 13.5K/s on `node-sz-1` and
+13.2K/s on `node-sz-0`, so the split is even to within 2%.
 
 ![CPU per node](docs/dashboard-cpu.png)
 
