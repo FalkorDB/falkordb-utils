@@ -82,6 +82,24 @@ The raw evidence for the table above is committed next to this file:
 | [`docs/benchmark-results.xlsx`](docs/benchmark-results.xlsx) | Workbook with the same numbers and native Excel charts |
 | [`docs/make_artifacts.py`](docs/make_artifacts.py) | Regenerates the three artifacts from `benchmark-run.txt` |
 
+### Seen from the server side
+
+The FalkorDB Cloud dashboard for the same run, which is useful because it is measured by the
+database rather than by the client that is making the claim.
+
+![Commands per second](docs/dashboard-commands.png)
+
+Total commands per second climbs in steps as the sweep works through 4, 16 and 64 threads. The
+tooltip is taken during a `ROUND_ROBIN` stage and shows `graph.RO_QUERY` at 13.5K/s on `node-sz-1`
+and 13.2K/s on `node-sz-0`, so the split is even to within 2%.
+
+![CPU per node](docs/dashboard-cpu.png)
+
+CPU per node tells the same story from the other direction. The tall narrow spikes to 100% are the
+`PRIMARY_ONLY` stages, where `node-sz-0` is pegged and `node-sz-1` sits on the floor. The wider
+plateaus where both lines rise together are the `ROUND_ROBIN` stages. Blocked clients, bottom right,
+only appear when one node is carrying everything.
+
 ## Requires jfalkordb 0.11.1 or newer
 
 Earlier versions warmed the client side schema cache using `GRAPH.QUERY`, which is a write command,
