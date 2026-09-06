@@ -116,6 +116,39 @@ CPU per node tells the same story from the other direction. The tall narrow spik
 plateaus where both lines rise together are the `ROUND_ROBIN` stages. Blocked clients, bottom right,
 only appear when one node is carrying everything.
 
+**Rotating, 64 threads.**
+
+![Rotating, commands per second](docs/dashboard-rotating-commands.png)
+
+The step at 17:42 is the switch from `PRIMARY_ONLY` to `ROUND_ROBIN`. Total commands per second
+roughly doubles, from about 13K to about 24K, and `graph.RO_QUERY` now appears on both nodes,
+13.1K/s on `node-sz-0` against 10.6K/s on `node-sz-1`. The tooltip was taken about 90 seconds into
+the stage while the replica pool was still filling. By steady state the two are even, and the run
+log below records 1.84 and 1.83 cores busy.
+
+One warning if you reproduce this. The dashboard CPU panel is sampled coarsely enough that a single
+tooltip can land in a trough and report a busy node as idle. Read the commands per second panel, or
+take `INFO cpu` as a delta over a window, rather than trusting a point reading on that panel.
+
+### Held for five minutes
+
+The table at the top uses 90 second stages. Repeating the extremes at 64 threads for five minutes
+each gives the same answer, which is the useful part.
+
+| Metric | Primary only | Rotating |
+|---|---|---|
+| Reads in 300s | 4,303,631 | **7,918,822** |
+| Throughput | 14,345/sec | **26,396/sec** |
+| Mean latency | 4.46 ms | **2.43 ms** |
+| Primary cores busy | 1.88 | 1.84 |
+| Replica cores busy | **0.00** | **1.83** |
+| Rejected queries | **117,217** | **0** |
+
+Throughput lands within 2% of the 90 second numbers in both modes, so the effect is a steady state
+property rather than a warm up transient. Over five minutes primary only dropped 117,217 requests
+while the replica stayed completely idle. Full output is in
+[`docs/sustained-5min-run.txt`](docs/sustained-5min-run.txt).
+
 ## Requires jfalkordb 0.11.1 or newer
 
 Earlier versions warmed the client side schema cache using `GRAPH.QUERY`, which is a write command,
