@@ -132,3 +132,8 @@ python examples/report_graph_memory.py --prefix rndgraph --out-dir ./report
 | Example | Path | Description |
 |---------|------|-------------|
 | Replica read routing | `java-examples/replica-read-routing/` | Connection factory that sends writes to the primary and spreads reads across replicas. Covers read preferences, staleness, pool sizing, and verifying which node served a read. Requires jfalkordb 0.11.1+ |
+
+## Internal
+
+`internal/README.md` holds FalkorDB internal runbooks, including how to reproduce the replica read
+benchmark on FalkorDB Cloud and which results are safe to quote. Not customer facing.
