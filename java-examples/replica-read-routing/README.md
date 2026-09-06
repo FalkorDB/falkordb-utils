@@ -72,7 +72,15 @@ when rotating runs first.
 
 ![Benchmark results](docs/benchmark-results.png)
 
-The full console output of this run is in [`docs/benchmark-run.txt`](docs/benchmark-run.txt).
+The raw evidence for the table above is committed next to this file:
+
+| File | What it is |
+|---|---|
+| [`docs/benchmark-run.txt`](docs/benchmark-run.txt) | Full console output of the run, including the CSV block |
+| [`docs/benchmark-results.png`](docs/benchmark-results.png) | The chart above |
+| [`docs/benchmark-console.png`](docs/benchmark-console.png) | The console output rendered as a terminal window |
+| [`docs/benchmark-results.xlsx`](docs/benchmark-results.xlsx) | Workbook with the same numbers and native Excel charts |
+| [`docs/make_artifacts.py`](docs/make_artifacts.py) | Regenerates the three artifacts from `benchmark-run.txt` |
 
 ## Requires jfalkordb 0.11.1 or newer
 
