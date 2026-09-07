@@ -86,8 +86,8 @@ def make_charts(rows, nodes, out):
     figure, axes = plt.subplots(2, 2, figsize=(15, 10))
     figure.suptitle(
         "Reading from the replica as well as the primary\n"
-        f"FalkorDB Cloud, AWS us-east-2, 1 primary + 1 replica, {nodes} nodes, "
-        "90 seconds sustained load per bar",
+        f"FalkorDB Cloud, AWS us-east-2, 1 primary + 1 replica, 2 cores per DB pod, "
+        f"4 core client\n{nodes} nodes, 90 seconds sustained load per bar",
         fontsize=15,
         fontweight="bold",
     )
@@ -289,8 +289,9 @@ def make_workbook(rows, nodes, out):
     sheet["A1"] = "Replica read routing, sustained load"
     sheet["A1"].font = title
     sheet["A2"] = (
-        f"FalkorDB Cloud, AWS us-east-2, 1 primary + 1 replica, THREAD_COUNT={FALKOR_THREAD_COUNT} "
-        f"per node, {nodes} nodes, 90 seconds per row."
+        f"FalkorDB Cloud, AWS us-east-2, 1 primary + 1 replica, 2 cores per DB pod, "
+        f"THREAD_COUNT={FALKOR_THREAD_COUNT} per node, 4 core client (EC2 c4.xlarge), "
+        f"{nodes} nodes, 90 seconds per row."
     )
     sheet["A3"] = "Every cell is measured. Nothing on this sheet is modelled or extrapolated."
     sheet["A3"].font = Font(italic=True, color="2E7D32")

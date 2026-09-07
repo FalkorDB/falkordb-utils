@@ -14,12 +14,57 @@ This file collects the procedures we want repeatable. Add a new section per topi
 
 # Read from replica
 
+## TL;DR
+
+Routing reads across the primary and the replica roughly doubles read throughput on a two pod
+instance, but **only once the primary is saturated**. Below about 8 client threads it changes
+nothing.
+
+Measured at 64 client threads, **2 cores per database pod**, **4 core client**:
+
+| | Primary only | Rotating |
+|---|---|---|
+| Throughput | 14,345 reads/sec | **26,396 reads/sec** |
+| Replica cores busy | **0.00 of 2** | **1.83 of 2** |
+| Rejected in 5 minutes | **117,217** | **0** |
+
+What to say and not say:
+
+- **Say** the ceiling is 2x, set by 2 cores per pod, and we measured 1.84x
+- **Say** primary only dropped 117,217 requests while the replica was idle
+- **Do not** quote localhost or Docker numbers, see [Where the numbers must come from](#where-the-numbers-must-come-from)
+- **Do not** present the 18 passing tests as evidence for throughput or replication, see [The test suite](#the-test-suite)
+- **Do not** promise failover behaviour, it was never tested
+
+## Test environment
+
+Reproduce on this or state clearly that you did not.
+
+| | Spec |
+|---|---|
+| Database | FalkorDB Cloud, 2 pods, one primary and one replica |
+| **Cores per database pod** | **2** |
+| `THREAD_COUNT` | 2 per node |
+| `MAX_QUEUED_QUERIES` | 50 per node |
+| `maxmemory` | 5.25 GB per node, `noeviction` |
+| Region | AWS us-east-2 |
+| Client | EC2 c4.xlarge, same region, Ubuntu 24.04 |
+| **Client cores** | **4 vCPU**, 7 GB RAM |
+| Client runtime | OpenJDK 17, Maven, jfalkordb 0.11.1 |
+| Dataset | about 1,980,000 nodes, 338 MB |
+| Network | Plaintext on Sentinel and data ports, 1.18 ms round trip |
+
+The core counts are the two numbers people forget to record and then cannot explain their results.
+**2 cores per pod** is why the ceiling is 2x and why `cores busy` saturates at 1.88 rather than
+climbing further. **4 client cores** is why 64 client threads is a fair test rather than a client
+side queueing artifact, since the threads block on the network rather than competing for CPU.
+
 ## What this proves
 
 That a replica bought for failover is idle capacity, and that routing reads across the primary and
 the replica converts it into throughput without changing the data model or the queries.
 
-The measured claim, at 64 client threads against a two pod instance:
+The measured claim, at 64 client threads against a two pod instance with 2 cores per pod:
 
 | | Primary only | Rotating |
 |---|---|---|
@@ -38,9 +83,12 @@ anything customer facing.
 
 Every figure in the example README came from:
 
-- the database on **FalkorDB Cloud**, two pods, one primary and one replica
-- the client on an **EC2 box in the same region as the database**, 4 vCPU
+- the database on **FalkorDB Cloud**, two pods, one primary and one replica, **2 cores per pod**
+- the client on an **EC2 box in the same region as the database**, **4 vCPU**
 - **90 second** stages for the sweep, **300 second** stages for the 64 thread confirmation
+
+Always record both core counts alongside a result. Without them a throughput number cannot be
+compared against anything and the 2x ceiling cannot be justified.
 
 Same region matters. At low concurrency throughput is `threads / latency` and latency is dominated
 by round trip time, so a client in another region measures the distance between the two rather than

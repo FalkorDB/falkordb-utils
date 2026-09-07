@@ -5,6 +5,52 @@ lives in one small factory instead of being repeated, and forgotten, throughout 
 
 This is reference code meant to be copied and adapted.
 
+## TL;DR
+
+On a two pod FalkorDB Cloud instance, **2 CPU cores per database pod** and a **4 core client**, at 64
+client threads:
+
+| | Primary only | Rotating | |
+|---|---|---|---|
+| Throughput | 14,345 reads/sec | **26,396 reads/sec** | +84% |
+| Mean latency | 4.46 ms | **2.43 ms** | 1.8x better |
+| Replica cores busy | **0.00 of 2** | **1.83 of 2** | the whole point |
+| Rejected in 5 minutes | **117,217** | **0** | |
+
+The replica you already pay for sits at zero while the primary drops 117 thousand requests. Rotating
+reads across both nodes is a client side change with no data model or query changes.
+
+Below about 8 client threads it changes nothing, because nothing is queueing yet. Do not adopt it
+for a low concurrency workload and expect a speedup. Details in [Why bother](#why-bother).
+
+## Test environment
+
+Every number in this README came from this setup. Nothing is from localhost or Docker.
+
+| | Spec |
+|---|---|
+| Database | FalkorDB Cloud, 2 pods, one primary and one replica |
+| **Cores per database pod** | **2** |
+| FalkorDB `THREAD_COUNT` | 2 per node, so 2 queries execute concurrently per node |
+| FalkorDB `MAX_QUEUED_QUERIES` | 50 per node |
+| Region | AWS us-east-2 |
+| Client | EC2 c4.xlarge, same region |
+| **Client cores** | **4 vCPU** |
+| Client runtime | OpenJDK 17, jfalkordb 0.11.1 |
+| Dataset | 660,000 machines and 1,320,000 readings, about 1,980,000 nodes, 338 MB |
+| Workload | One hop indexed reads, one parameterised query shape, 10,000 rotating parameter sets |
+| Network | Plaintext, 1.18 ms round trip client to database |
+
+Two consequences of the hardware worth holding on to.
+
+**2 cores per pod sets the ceiling at 2x.** One node executes 2 queries at a time, so a second node
+can at best double read capacity. We measured 1.84x. Any claim above 2x on this shape of instance
+would be wrong.
+
+**4 client cores means the client is not the bottleneck at 64 threads.** The threads are blocked on
+network and server responses rather than competing for client CPU, which is why 64 threads on 4
+cores is a reasonable test rather than an artificial one.
+
 ## Scope: primary and replica, not Redis Cluster
 
 This targets a deployment with **one primary holding the whole dataset and one or more replicas
@@ -18,13 +64,13 @@ checks `cluster_enabled` at startup and refuses to build against a cluster.
 
 ## Why bother
 
-A replica that only exists for failover still costs money and still burns nothing. Measured on
-FalkorDB Cloud (AWS us-east-2, 2 pods, `THREAD_COUNT=2` per node) with the Java client on a
-c4.xlarge in the same region, against a graph of about 1,980,000 nodes. Each row is 90 seconds of
-sustained one hop indexed reads drawn from a rotating pool of 10,000 parameter sets.
+A replica that only exists for failover still costs money and still burns nothing. Measured on the
+setup in [Test environment](#test-environment) above, 2 cores per database pod and a 4 core client,
+against a graph of about 1,980,000 nodes. Each row is 90 seconds of sustained one hop indexed reads
+drawn from a rotating pool of 10,000 parameter sets.
 
-`Cores busy` is CPU consumed divided by wall clock. Each node runs `THREAD_COUNT=2`, so 2.00 means
-that node is saturated and 0.00 means it is idle.
+`Cores busy` is CPU consumed divided by wall clock, measured against the 2 cores each pod has. 2.00
+means that node is saturated and 0.00 means it is idle.
 
 | Threads | Mode | Reads/sec | Mean latency | Primary cores busy | Replica cores busy | Rejected |
 |---|---|---|---|---|---|---|
