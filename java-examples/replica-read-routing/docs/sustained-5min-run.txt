@@ -1,0 +1,24 @@
+master 'master' primary=node-sz-0.your-instance.cloud:6379 replicas=[node-sz-1.your-instance.cloud:6379]
+plan: 1 thread counts x 2 modes x 300s = 10 min 00s of load, plus seeding
+graph already holds 660,000 machines, skipping seed
+warmed the plan cache and the client schema cache on every node
+
+=== 64 threads, PRIMARY_ONLY, running 300s ===
+  4,303,631 reads in 300.0s = 14,345 reads/sec (failures: 117217)
+  mean latency: 4.461 ms
+  first failure: redis.clients.jedis.exceptions.JedisDataException: Max pending queries exceeded
+  cpu node-sz-0         564.0 core-s = 1.88 cores busy
+  cpu node-sz-1           1.1 core-s = 0.00 cores busy
+
+=== 64 threads, ROUND_ROBIN, running 300s ===
+  7,918,822 reads in 300.0s = 26,396 reads/sec (failures: 0)
+  mean latency: 2.425 ms
+  cpu node-sz-0         551.9 core-s = 1.84 cores busy
+  cpu node-sz-1         548.6 core-s = 1.83 cores busy
+
+===== CSV =====
+threads,mode,reads,seconds,throughput_qps,latency_ms,primary_cpu_s,replica_cpu_s,primary_cores,replica_cores,failures
+64,PRIMARY_ONLY,4303631,300.004,14345,4.461,564.01,1.10,1.88,0.00,117217
+64,ROUND_ROBIN,7918822,300.003,26396,2.425,551.88,548.60,1.84,1.83,0
+
+kept graph 'routing_comparison', rerun to reuse it without reseeding

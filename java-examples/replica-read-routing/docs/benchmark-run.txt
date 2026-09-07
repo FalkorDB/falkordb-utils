@@ -1,0 +1,59 @@
+master 'master' primary=node-sz-0.your-instance.cloud:6379 replicas=[node-sz-1.your-instance.cloud:6379]
+plan: 3 thread counts x 2 modes x 90s = 9 min 00s of load, plus seeding
+  seeded 100,000 of 660,000 machines
+  seeded 200,000 of 660,000 machines
+  seeded 300,000 of 660,000 machines
+  seeded 400,000 of 660,000 machines
+  seeded 500,000 of 660,000 machines
+  seeded 600,000 of 660,000 machines
+  seeded 660,000 of 660,000 machines
+seeded 660,000 machines and 1,320,000 readings in 8s, about 1,980,000 nodes total
+warmed the plan cache and the client schema cache on every node
+
+=== 4 threads, PRIMARY_ONLY, running 90s ===
+  271,371 reads in 90.0s = 3,015 reads/sec (failures: 0)
+  mean latency: 1.327 ms
+  cpu node-sz-0          43.0 core-s = 0.48 cores busy
+  cpu node-sz-1           0.3 core-s = 0.00 cores busy
+
+=== 4 threads, ROUND_ROBIN, running 90s ===
+  271,769 reads in 90.0s = 3,020 reads/sec (failures: 0)
+  mean latency: 1.325 ms
+  cpu node-sz-0          24.1 core-s = 0.27 cores busy
+  cpu node-sz-1          22.8 core-s = 0.25 cores busy
+
+=== 16 threads, PRIMARY_ONLY, running 90s ===
+  922,608 reads in 90.0s = 10,251 reads/sec (failures: 0)
+  mean latency: 1.561 ms
+  cpu node-sz-0         142.4 core-s = 1.58 cores busy
+  cpu node-sz-1           0.3 core-s = 0.00 cores busy
+
+=== 16 threads, ROUND_ROBIN, running 90s ===
+  1,064,536 reads in 90.0s = 11,828 reads/sec (failures: 0)
+  mean latency: 1.353 ms
+  cpu node-sz-0          78.8 core-s = 0.88 cores busy
+  cpu node-sz-1          75.9 core-s = 0.84 cores busy
+
+=== 64 threads, PRIMARY_ONLY, running 90s ===
+  1,288,383 reads in 90.0s = 14,315 reads/sec (failures: 33421)
+  mean latency: 4.471 ms
+  first failure: redis.clients.jedis.exceptions.JedisDataException: Max pending queries exceeded
+  cpu node-sz-0         168.7 core-s = 1.87 cores busy
+  cpu node-sz-1           0.7 core-s = 0.01 cores busy
+
+=== 64 threads, ROUND_ROBIN, running 90s ===
+  2,398,575 reads in 90.0s = 26,650 reads/sec (failures: 0)
+  mean latency: 2.402 ms
+  cpu node-sz-0         165.9 core-s = 1.84 cores busy
+  cpu node-sz-1         165.0 core-s = 1.83 cores busy
+
+===== CSV =====
+threads,mode,reads,seconds,throughput_qps,latency_ms,primary_cpu_s,replica_cpu_s,primary_cores,replica_cores,failures
+4,PRIMARY_ONLY,271371,90.001,3015,1.327,42.96,0.32,0.48,0.00,0
+4,ROUND_ROBIN,271769,90.001,3020,1.325,24.15,22.76,0.27,0.25,0
+16,PRIMARY_ONLY,922608,90.003,10251,1.561,142.43,0.31,1.58,0.00,0
+16,ROUND_ROBIN,1064536,90.001,11828,1.353,78.77,75.92,0.88,0.84,0
+64,PRIMARY_ONLY,1288383,90.004,14315,4.471,168.71,0.74,1.87,0.01,33421
+64,ROUND_ROBIN,2398575,90.004,26650,2.402,165.86,165.01,1.84,1.83,0
+
+kept graph 'routing_comparison', rerun to reuse it without reseeding
